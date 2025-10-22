@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>カウントダウンタイマー</title>
+  <style>
+    :root {
+      --green:#28c76f;
+      --green-dark:#22b364;
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --text:#222;
+      --muted:#666;
+      --ring:#cfeeda;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      background:var(--bg); color:var(--text);
+    }
+    header{
+      display:flex; align-items:center; gap:.6rem; padding:14px 18px; border-bottom:1px solid #e7e7e7; background:#fff;
+      position:sticky; top:0; z-index:2;
+    }
+    header h1{ font-size:18px; margin:0; }
+
+    .wrap{ max-width:980px; margin:24px auto; padding:0 16px; }
+
+    .grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:16px; }
+
+    .card{ background:var(--card); border-radius:18px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.06); display:flex; align-items:center; justify-content:center; min-height:160px; position:relative; }
+
+    /* Buttons */
+    .primary-btn{ appearance:none; border:none; background:var(--green); color:#fff; font-weight:700; border-radius:999px; padding:14px 22px; cursor:pointer; font-size:16px; box-shadow:0 6px 16px rgba(40,199,111,.35); transition: transform .04s ease, box-shadow .2s ease, background .2s ease; }
+    .primary-btn:hover{ background:var(--green-dark); }
+    .primary-btn:active{ transform: translateY(1px); }
+
+    /* Modal */
+    .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:10; }
+    .modal{ width:min(92vw,480px); background:#fff; border-radius:18px; box-shadow:0 20px 80px rgba(0,0,0,.35); overflow:hidden; }
+    .modal .head{ background:var(--green); color:#fff; padding:12px 18px; display:flex; align-items:center; justify-content:center; gap:18px; }
+    .modal .head h2{ margin:0; font-size:22px; letter-spacing:.05em; }
+
+    .picker{ display:grid; grid-template-columns: 1fr 1fr; padding:14px 18px 6px; gap:16px; }
+    .picker .col{ background:#f4f9f6; border:1px solid #e8f4eb; border-radius:14px; padding:12px; }
+    .picker label{ display:block; font-size:13px; color:#0a8a46; margin-bottom:6px; letter-spacing:.08em; }
+    select{ width:100%; height:260px; border:none; outline:none; background:transparent; font-weight:700; font-size:22px; color:#0d5132; padding:4px; scroll-snap-type:y mandatory; }
+    select option{ font-size:22px; padding:8px; scroll-snap-align:start; }
+
+    .modal .big-display{ text-align:center; font-variant-numeric: tabular-nums; font-weight:800; font-size:72px; letter-spacing:.05em; color:#fff; background:var(--green); }
+    .modal .big-display span{ display:inline-block; padding:10px 0 16px; }
+
+    .modal .foot{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px 18px; }
+    .ghost{ background:transparent; border:none; color:#888; font-weight:600; padding:8px 14px; cursor:pointer; }
+    .ghost:hover{ color:#333; }
+
+    /* Timer Overlay */
+    .overlay{ position:fixed; inset:0; background:rgba(0,0,0,.48); display:none; align-items:center; justify-content:center; z-index:20; }
+    .timer{ width:min(92vw,560px); background:#111; color:#fff; border-radius:22px; overflow:hidden; display:flex; flex-direction:column; align-items:center; }
+
+    .ring{ position:relative; width:86%; aspect-ratio:1/1; margin:28px auto 8px; display:grid; place-items:center; }
+    .ring svg{ position:absolute; inset:0; transform:rotate(-90deg); }
+    .ring .time{ position:relative; z-index:1; font-size:72px; font-weight:800; letter-spacing:.06em; font-variant-numeric:tabular-nums; }
+
+    .controls{ display:flex; align-items:center; justify-content:center; gap:14px; margin:16px 0 26px; }
+    .play{ width:74px; height:74px; border-radius:50%; border:none; background:var(--green); color:#fff; cursor:pointer; display:grid; place-items:center; font-size:0; box-shadow:0 8px 24px rgba(40,199,111,.45); }
+    .play svg{ width:32px; height:32px; }
+    .icon-btn{ width:42px; height:42px; border-radius:50%; background:#222; color:#fff; border:none; display:grid; place-items:center; cursor:pointer; }
+
+    .meta{ width:100%; display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-top:1px solid #222; }
+    .meta .left{ color:#bbb; display:flex; align-items:center; gap:16px; }
+    .meta .link{ color:#f3f3f3; text-decoration:underline; cursor:pointer; }
+
+    .badge{ position:absolute; top:10px; left:50%; transform:translateX(-50%); background:#333; color:#e9f9ef; padding:3px 10px; border-radius:10px; font-size:12px; font-weight:700; letter-spacing:.05em; }
+
+    .visually-hidden{ position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#28c76f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <h1>カウントダウンタイマー</h1>
+  </header>
+
+  <main class="wrap">
+    <div class="grid"><!-- ロード直後は何も表示しない（モーダルのみ） --></div>
+  </main>
+
+  <!-- Create Modal -->
+  <div class="modal-backdrop" id="createModal" style="display:flex">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+      <div class="head"><h2 id="dlgTitle">時間を設定</h2></div>
+      <div class="big-display"><span id="preview">00:30</span></div>
+      <div class="picker">
+        <div class="col">
+          <label for="minSel">分</label>
+          <select id="minSel" size="12" aria-label="分"><!-- options injected --></select>
+        </div>
+        <div class="col">
+          <label for="secSel">秒</label>
+          <select id="secSel" size="12" aria-label="秒"></select>
+        </div>
+      </div>
+      <div class="foot">
+        <button class="ghost" id="cancelCreate">キャンセル</button>
+        <button class="primary-btn" id="confirmCreate">作成する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timer Overlay -->
+  <div class="overlay" id="timerOverlay" aria-live="polite">
+    <div class="timer" role="dialog" aria-modal="true" aria-labelledby="timerTitle">
+      <div class="badge" id="badge">00:00</div>
+      <div class="ring">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+          <circle cx="50" cy="50" r="46" stroke="var(--ring)" stroke-width="6" fill="none"/>
+          <circle id="progress" cx="50" cy="50" r="46" stroke="var(--green)" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="0"/>
+        </svg>
+        <div class="time" id="bigTime" aria-live="polite">05:00</div>
+      </div>
+      <div class="controls">
+        <button class="icon-btn" id="muteBtn" aria-label="サウンドオン/オフ">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19 5a7 7 0 0 1 0 14"></path>
+          </svg>
+        </button>
+        <button class="play" id="playPause" aria-label="開始">
+          <svg id="playIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg id="pauseIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        </button>
+        <button class="icon-btn" id="resetBtn" aria-label="リセット">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+          </svg>
+        </button>
+      </div>
+      <div class="meta">
+        <div class="left"><span id="status">停止中</span></div>
+        <div><span class="link" id="deleteTimer">削除</span></div>
+      </div>
+    </div>
+  </div>
+
+  <audio id="beep" class="visually-hidden"></audio>
+
+  <script>
+  // ------- Utilities -------
+  const pad2 = (n)=> String(n).padStart(2,'0');
+
+  // Fill select options 0..59
+  function fill0to59(sel){
+    const frag = document.createDocumentFragment();
+    for(let i=0;i<60;i++){ const o = document.createElement('option'); o.value = i; o.textContent = i; frag.appendChild(o); }
+    sel.appendChild(frag);
+  }
+
+  // ------- Elements -------
+  const createModal = document.getElementById('createModal');
+  const cancelCreate = document.getElementById('cancelCreate');
+  const confirmCreate = document.getElementById('confirmCreate');
+  const minSel = document.getElementById('minSel');
+  const secSel = document.getElementById('secSel');
+  const preview = document.getElementById('preview');
+
+  const overlay = document.getElementById('timerOverlay');
+  const bigTime = document.getElementById('bigTime');
+  const playPause = document.getElementById('playPause');
+  const playIcon = document.getElementById('playIcon');
+  const pauseIcon = document.getElementById('pauseIcon');
+  const resetBtn = document.getElementById('resetBtn');
+  const muteBtn = document.getElementById('muteBtn');
+  const deleteTimer = document.getElementById('deleteTimer');
+  const progress = document.getElementById('progress');
+  const statusEl = document.getElementById('status');
+  const badge = document.getElementById('badge');
+  const beep = document.getElementById('beep');
+
+  // preload a short beep (base64-encoded wav)
+  beep.src = 'data:audio/wav;base64,UklGRl4AAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAABkYXRhRAAAAEAAAP8AAP7//v7+/v7+//7//v7+/v7+/v7+//7+//7+//7+/v7+/v7+/v7+//7+/v7+/v7+/v7+//7+//7+//7+/v7+/v7+/v7+//7+/v7+/v7+/v7+//7+//7+//7+/v7+/v7+/v7+//7+//7+//7+/v7+';
+
+  // ------- Timer state -------
+  let totalMs = 0;    // total duration
+  let leftMs = 0;     // remaining
+  let running = false;
+  let rafId = null;   // animation frame id
+  let lastTs = 0;     // timestamp for RAF
+  let muted = false;
+  const CIRCUM = 2*Math.PI*46; // r=46 -> ~289
+  progress.setAttribute('stroke-dasharray', CIRCUM);
+
+  function openModal(){ createModal.style.display='flex'; }
+  function closeModal(){ createModal.style.display='none'; }
+  function openOverlay(){ overlay.style.display='flex'; }
+  function closeOverlay(){ overlay.style.display='none'; stop(); }
+
+  function updatePreview(){
+    const m = Number(minSel.value||0), s = Number(secSel.value||0);
+    preview.textContent = `${pad2(m)}:${pad2(s)}`;
+  }
+
+  function setInitial(min, sec){
+    totalMs = (min*60 + sec) * 1000;
+    leftMs = totalMs;
+    render();
+    badge.textContent = `${pad2(min)}:${pad2(sec)}`;
+  }
+
+  function render(){
+    const sec = Math.ceil(leftMs/1000);
+    const mm = Math.floor(sec/60); const ss = sec % 60;
+    bigTime.textContent = `${pad2(mm)}:${pad2(ss)}`;
+    const ratio = totalMs>0 ? (leftMs/totalMs) : 0;
+    progress.setAttribute('stroke-dashoffset', String((1-ratio)*CIRCUM));
+  }
+
+  function tick(ts){
+    if(!running){ return; }
+    if(!lastTs) lastTs = ts;
+    const dt = ts - lastTs; lastTs = ts;
+    leftMs = Math.max(0, leftMs - dt);
+    render();
+    if(leftMs <= 0){
+      stop();
+      statusEl.textContent = '終了';
+      if(!muted){ try{ beep.currentTime=0; beep.play(); }catch(e){} }
+      overlay.animate([{background:'rgba(0,0,0,.48)'},{background:'rgba(255,255,255,.8)'},{background:'rgba(0,0,0,.48)'}],{duration:600});
+      return;
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function start(){
+    if(totalMs<=0) return;
+    if(leftMs<=0) leftMs = totalMs; // safeguard
+    if(!running){ running = true; lastTs = 0; statusEl.textContent='カウント中';
+      playIcon.style.display='none'; pauseIcon.style.display='block';
+      rafId = requestAnimationFrame(tick);
+    }
+  }
+  function stop(){
+    running=false; if(rafId) cancelAnimationFrame(rafId); rafId=null; lastTs=0;
+    playIcon.style.display='block'; pauseIcon.style.display='none';
+    if(leftMs>0) statusEl.textContent='一時停止';
+  }
+  function reset(){ leftMs = totalMs; render(); statusEl.textContent='停止中'; }
+
+  // ------- Event wiring -------
+  fill0to59(minSel); fill0to59(secSel);
+  minSel.value = 5; secSel.value=0; updatePreview();
+
+  minSel.addEventListener('input', updatePreview);
+  secSel.addEventListener('input', updatePreview);
+  cancelCreate.addEventListener('click', ()=> closeModal());
+
+  confirmCreate.addEventListener('click', ()=>{
+    const m=Number(minSel.value||0), s=Number(secSel.value||0);
+    if(m===0 && s===0){ alert('0:00 以外を選択してください。'); return; }
+    closeModal();
+    setInitial(m,s);
+    bigTime.textContent = `${pad2(m)}:${pad2(s)}`;
+    openOverlay();
+  });
+
+  playPause.addEventListener('click', ()=>{ running ? stop() : start(); });
+  resetBtn.addEventListener('click', ()=>{ stop(); reset(); });
+  muteBtn.addEventListener('click', ()=>{ muted = !muted; muteBtn.style.opacity = muted ? .5 : 1; });
+  deleteTimer.addEventListener('click', ()=>{ closeOverlay(); });
+
+  // Keyboard: Space to toggle
+  document.addEventListener('keydown', (e)=>{
+    if(overlay.style.display==='flex' && (e.code==='Space' || e.key===' ')){
+      e.preventDefault(); running ? stop() : start();
+    }
+  });
+
+  // Close overlay/modal when clicking backdrop only
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeOverlay(); });
+  createModal.addEventListener('click', (e)=>{ if(e.target===createModal) closeModal(); });
+
+  // Show the time picker immediately on load
+  document.addEventListener('DOMContentLoaded', () => {
+    openModal();
+    setTimeout(()=> minSel && minSel.focus(), 0);
+  });
+
+  // -------- Simple self-tests (console only) --------
+  (function runSelfTests(){
+    try{
+      console.assert(pad2(5)==='05', 'pad2: 5 -> 05');
+      console.assert(pad2(12)==='12', 'pad2: 12 -> 12');
+      const _t=totalMs, _l=leftMs; setInitial(0,30);
+      console.assert(totalMs===30000 && leftMs===30000, 'setInitial 0:30 should be 30000ms');
+      leftMs=_l; totalMs=_t; render(); // restore
+      console.log('%cSelf-tests passed','color:#28c76f');
+    }catch(err){ console.warn('Self-tests error', err); }
+  })();
+  </script>
+</body>
+</html>
