@@ -278,8 +278,8 @@
   });
 
   // Close overlay/modal when clicking backdrop only
-  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeOverlay(); });
-  createModal.addEventListener('click', (e)=>{ if(e.target===createModal) closeModal(); });
+  overlay.addEventListener('click', (e)=>{ /* timer backdrop click disabled by request */ });
+  createModal.addEventListener('click', (e)=>{ /* backdrop click disabled by request */ });
 
   // Show the time picker immediately on load
   document.addEventListener('DOMContentLoaded', () => {
