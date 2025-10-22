@@ -102,8 +102,7 @@
           <select id="secSel" size="12" aria-label="秒"></select>
         </div>
       </div>
-      <div class="foot">
-        <button class="ghost" id="cancelCreate">キャンセル</button>
+      <div class="foot" style="justify-content:flex-end; gap:12px;">
         <button class="primary-btn" id="confirmCreate">作成する</button>
       </div>
     </div>
@@ -159,7 +158,6 @@
 
   // ------- Elements -------
   const createModal = document.getElementById('createModal');
-  const cancelCreate = document.getElementById('cancelCreate');
   const confirmCreate = document.getElementById('confirmCreate');
   const minSel = document.getElementById('minSel');
   const secSel = document.getElementById('secSel');
@@ -253,7 +251,6 @@
 
   minSel.addEventListener('input', updatePreview);
   secSel.addEventListener('input', updatePreview);
-  cancelCreate.addEventListener('click', ()=> closeModal());
 
   confirmCreate.addEventListener('click', ()=>{
     const m=Number(minSel.value||0), s=Number(secSel.value||0);
@@ -267,7 +264,11 @@
   playPause.addEventListener('click', ()=>{ running ? stop() : start(); });
   resetBtn.addEventListener('click', ()=>{ stop(); reset(); });
   muteBtn.addEventListener('click', ()=>{ muted = !muted; muteBtn.style.opacity = muted ? .5 : 1; });
-  deleteTimer.addEventListener('click', ()=>{ closeOverlay(); });
+  deleteTimer.addEventListener('click', ()=>{ 
+    closeOverlay();
+    openModal();
+    setTimeout(()=> minSel && minSel.focus(), 0);
+  });
 
   // Keyboard: Space to toggle
   document.addEventListener('keydown', (e)=>{
