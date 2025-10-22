@@ -47,6 +47,7 @@
     .picker label{ display:block; font-size:13px; color:#0a8a46; margin-bottom:6px; letter-spacing:.08em; }
     select{ width:100%; height:260px; border:none; outline:none; background:transparent; font-weight:700; font-size:22px; color:#0d5132; padding:4px; scroll-snap-type:y mandatory; }
     select option{ font-size:22px; padding:8px; scroll-snap-align:start; }
+    select:disabled{ opacity:.55; cursor:not-allowed; filter:grayscale(0.2); }
 
     .modal .big-display{ text-align:center; font-variant-numeric: tabular-nums; font-weight:800; font-size:72px; letter-spacing:.05em; color:#fff; background:var(--green); }
     .modal .big-display span{ display:inline-block; padding:10px 0 16px; }
@@ -72,7 +73,7 @@
     .meta .left{ color:#bbb; display:flex; align-items:center; gap:16px; }
     .meta .link{ color:#f3f3f3; text-decoration:underline; cursor:pointer; }
 
-    .badge{ position:absolute; top:10px; left:50%; transform:translateX(-50%); background:#333; color:#e9f9ef; padding:3px 10px; border-radius:10px; font-size:12px; font-weight:700; letter-spacing:.05em; }
+    .badge{ position:absolute; top:10px; left:50%; transform:translateX(-50%); background:#333; color:#e9f9ef; padding:3px 10px; border-radius:10px; font-size:12px; font-weight:700; }
 
     .visually-hidden{ position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
   </style>
@@ -91,7 +92,7 @@
   <div class="modal-backdrop" id="createModal" style="display:flex">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
       <div class="head"><h2 id="dlgTitle">時間を設定</h2></div>
-      <div class="big-display"><span id="preview">00:30</span></div>
+      <div class="big-display"><span id="preview">05:00</span></div>
       <div class="picker">
         <div class="col">
           <label for="minSel">分</label>
@@ -149,10 +150,10 @@
   // ------- Utilities -------
   const pad2 = (n)=> String(n).padStart(2,'0');
 
-  // Fill select options 0..59
-  function fill0to59(sel){
+  // Fill select options 0..max
+  function fillRange(sel, max){
     const frag = document.createDocumentFragment();
-    for(let i=0;i<60;i++){ const o = document.createElement('option'); o.value = i; o.textContent = i; frag.appendChild(o); }
+    for(let i=0;i<=max;i++){ const o = document.createElement('option'); o.value = i; o.textContent = i; frag.appendChild(o); }
     sel.appendChild(frag);
   }
 
@@ -189,13 +190,31 @@
   const CIRCUM = 2*Math.PI*46; // r=46 -> ~289
   progress.setAttribute('stroke-dasharray', CIRCUM);
 
-  function openModal(){ createModal.style.display='flex'; }
+  function openModal(){
+    createModal.style.display='flex';
+    if(window.__firstOpen__ === undefined){
+      window.__firstOpen__ = false; // mark initialized after first run
+      // Set default to 05:00 on FIRST open only
+      minSel.value = '5';
+      secSel.value = '0';
+      updatePreview();
+    }
+  }
   function closeModal(){ createModal.style.display='none'; }
   function openOverlay(){ overlay.style.display='flex'; }
   function closeOverlay(){ overlay.style.display='none'; stop(); }
 
   function updatePreview(){
-    const m = Number(minSel.value||0), s = Number(secSel.value||0);
+    let m = Number(minSel.value||0);
+    let s = Number(secSel.value||0);
+    if(m === 60){
+      // 60分時は 60:00 のみ許可
+      s = 0;
+      secSel.value = 0;
+      secSel.disabled = true;
+    }else{
+      secSel.disabled = false;
+    }
     preview.textContent = `${pad2(m)}:${pad2(s)}`;
   }
 
@@ -246,14 +265,18 @@
   function reset(){ leftMs = totalMs; render(); statusEl.textContent='停止中'; }
 
   // ------- Event wiring -------
-  fill0to59(minSel); fill0to59(secSel);
-  minSel.value = 5; secSel.value=0; updatePreview();
+  fillRange(minSel, 60); fillRange(secSel, 59);
+  minSel.value = 5; secSel.value = 0; updatePreview();
+  // default should be 05:00
+  try { console.assert(preview.textContent === '05:00', 'default preview should be 05:00'); } catch(_) {}
 
   minSel.addEventListener('input', updatePreview);
   secSel.addEventListener('input', updatePreview);
 
   confirmCreate.addEventListener('click', ()=>{
-    const m=Number(minSel.value||0), s=Number(secSel.value||0);
+    const m = Number(minSel.value||0);
+    let s = Number(secSel.value||0);
+    if(m === 60) s = 0; // enforce 60:00 only
     if(m===0 && s===0){ alert('0:00 以外を選択してください。'); return; }
     closeModal();
     setInitial(m,s);
@@ -277,9 +300,9 @@
     }
   });
 
-  // Close overlay/modal when clicking backdrop only
-  overlay.addEventListener('click', (e)=>{ /* timer backdrop click disabled by request */ });
-  createModal.addEventListener('click', (e)=>{ /* backdrop click disabled by request */ });
+  // Backdrop clicks disabled by request
+  overlay.addEventListener('click', (e)=>{ /* timer backdrop click disabled */ });
+  createModal.addEventListener('click', (e)=>{ /* time-picker backdrop click disabled */ });
 
   // Show the time picker immediately on load
   document.addEventListener('DOMContentLoaded', () => {
@@ -287,14 +310,54 @@
     setTimeout(()=> minSel && minSel.focus(), 0);
   });
 
+
+  // Prevent closing with ESC on both modal and timer overlay
+  document.addEventListener('keydown', (e)=>{
+    if(e.code === 'Escape' || e.key === 'Escape'){
+      if(createModal.style.display==='flex' || overlay.style.display==='flex'){
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+  });
+
   // -------- Simple self-tests (console only) --------
   (function runSelfTests(){
     try{
       console.assert(pad2(5)==='05', 'pad2: 5 -> 05');
       console.assert(pad2(12)==='12', 'pad2: 12 -> 12');
+      // range fill
+      console.assert(minSel.options.length===61, 'minutes should have 0..60 (61 options)');
+      console.assert(secSel.options.length===60, 'seconds should have 0..59 (60 options)');
+
+      // Preserve UI state to avoid side effects
+      const prevMin = minSel.value; const prevSec = secSel.value; const prevDisabled = secSel.disabled;
+
       const _t=totalMs, _l=leftMs; setInitial(0,30);
       console.assert(totalMs===30000 && leftMs===30000, 'setInitial 0:30 should be 30000ms');
-      leftMs=_l; totalMs=_t; render(); // restore
+      setInitial(60,0);
+      console.assert(totalMs===3600000 && leftMs===3600000, 'setInitial 60:00 should be 3600000ms');
+
+      // UI constraint tests
+      minSel.value = '60'; secSel.value = '30'; updatePreview();
+      console.assert(secSel.disabled === true && secSel.value === '0', 'minutes=60 should disable seconds and set to 0');
+      console.assert(preview.textContent === '60:00', 'preview should show 60:00 when minutes=60');
+
+      minSel.value = '59'; secSel.value = '45'; updatePreview();
+      console.assert(secSel.disabled === false && secSel.value === '45', 'minutes<60 should allow seconds and keep selection');
+      console.assert(preview.textContent === '59:45', 'preview should show 59:45');
+
+      // Restore UI state
+      minSel.value = prevMin; secSel.value = prevSec; secSel.disabled = prevDisabled; updatePreview();
+
+      leftMs=_l; totalMs=_t; render(); // restore timer values
+
+      // ESC should not close modal when visible (synthetic event)
+      if(createModal.style.display==='flex'){
+        const ev = new KeyboardEvent('keydown', {key:'Escape', code:'Escape', bubbles:true});
+        document.dispatchEvent(ev);
+        console.assert(createModal.style.display==='flex', 'ESC should not close time picker modal');
+      }
       console.log('%cSelf-tests passed','color:#28c76f');
     }catch(err){ console.warn('Self-tests error', err); }
   })();
