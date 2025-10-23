@@ -122,9 +122,14 @@
       </div>
       <div class="controls">
         <button class="icon-btn" id="muteBtn" aria-label="サウンドオン/オフ">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg id="soundOnIcon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <path d="M19 5a7 7 0 0 1 0 14"></path>
+          </svg>
+          <svg id="soundOffIcon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
           </svg>
         </button>
         <button class="play" id="playPause" aria-label="開始">
@@ -144,7 +149,9 @@
     </div>
   </div>
 
-  <audio id="beep" class="visually-hidden"></audio>
+  <audio id="beep" class="visually-hidden" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQ=" type="audio/wav">
+  </audio>
 
   <script>
   // ------- Utilities -------
@@ -171,14 +178,157 @@
   const pauseIcon = document.getElementById('pauseIcon');
   const resetBtn = document.getElementById('resetBtn');
   const muteBtn = document.getElementById('muteBtn');
+  const soundOnIcon = document.getElementById('soundOnIcon');
+  const soundOffIcon = document.getElementById('soundOffIcon');
   const deleteTimer = document.getElementById('deleteTimer');
   const progress = document.getElementById('progress');
   const statusEl = document.getElementById('status');
   const badge = document.getElementById('badge');
   const beep = document.getElementById('beep');
 
-  // preload a short beep (base64-encoded wav)
-  beep.src = 'data:audio/wav;base64,UklGRl4AAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAABkYXRhRAAAAEAAAP8AAP7//v7+/v7+//7//v7+/v7+/v7+//7+//7+//7+/v7+/v7+/v7+//7+/v7+/v7+/v7+//7+//7+//7+/v7+/v7+/v7+//7+/v7+/v7+/v7+//7+//7+//7+/v7+/v7+/v7+//7+//7+//7+/v7+';
+  // より確実な音声再生システム
+  let audioContext = null;
+  let isAudioReady = false;
+  
+  // シンプルな音声初期化
+  function initAudio() {
+    try {
+      // HTMLオーディオ要素の準備
+      beep.load();
+      beep.volume = 0.5;
+      
+      // Web Audio APIの初期化
+      if (!audioContext && (window.AudioContext || window.webkitAudioContext)) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContext();
+        
+        // サスペンド状態の場合は再開
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+      }
+      
+      isAudioReady = true;
+      console.log('Audio initialized successfully');
+    } catch (e) {
+      console.warn('Audio initialization failed:', e);
+    }
+  }
+  
+  // 確実な音声再生
+  function playAlarmSound() {
+    if (muted) {
+      console.log('Sound is muted');
+      return;
+    }
+    
+    console.log('Playing alarm sound...');
+    
+    // 複数の方法で音声再生を試行
+    let soundPlayed = false;
+    
+    // 方法1: HTMLオーディオ要素（最も確実）
+    try {
+      beep.currentTime = 0;
+      const playPromise = beep.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          console.log('HTML audio played successfully');
+          soundPlayed = true;
+        }).catch(e => {
+          console.warn('HTML audio failed:', e);
+          // 方法2: Web Audio APIでのビープ音生成
+          tryWebAudioBeep();
+        });
+      } else {
+        console.log('HTML audio play() returned undefined');
+        tryWebAudioBeep();
+      }
+    } catch (e) {
+      console.warn('HTML audio error:', e);
+      tryWebAudioBeep();
+    }
+    
+    // 方法3: 強制的なビープ音生成（最後の手段）
+    setTimeout(() => {
+      if (!soundPlayed) {
+        console.log('Trying forced beep generation');
+        // より確実なWeb Audio APIビープ音
+        try {
+          if (!audioContext) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioContext = new AudioContext();
+          }
+          
+          if (audioContext.state === 'suspended') {
+            audioContext.resume();
+          }
+          
+          // 複数回のビープ音で目立たせる
+          for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+              const oscillator = audioContext.createOscillator();
+              const gainNode = audioContext.createGain();
+              
+              oscillator.connect(gainNode);
+              gainNode.connect(audioContext.destination);
+              
+              oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+              oscillator.type = 'square';
+              
+              gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+              gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.02);
+              gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2);
+              
+              oscillator.start(audioContext.currentTime);
+              oscillator.stop(audioContext.currentTime + 0.2);
+              
+              console.log(`Forced beep ${i + 1} played`);
+            }, i * 300);
+          }
+        } catch (e) {
+          console.warn('Forced beep generation failed:', e);
+        }
+      }
+    }, 500);
+  }
+  
+  function tryWebAudioBeep() {
+    try {
+      if (audioContext && audioContext.state === 'running') {
+        // シンプルなビープ音を生成
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // 設定
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        oscillator.type = 'sine';
+        
+        // 音量調整
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.6);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.6);
+        
+        console.log('Web Audio beep played');
+      } else if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          tryWebAudioBeep(); // 再帰的に再試行
+        });
+      }
+    } catch (e) {
+      console.warn('Web Audio beep failed:', e);
+    }
+  }
+
+  // preload a longer beep sound (base64-encoded wav)
+  beep.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQkZaLvt559NEAxQp+PwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmQaBTGN2fPPfCwGK4DO8tiNOQ=';
 
   // ------- Timer state -------
   let totalMs = 0;    // total duration
@@ -242,8 +392,13 @@
     if(leftMs <= 0){
       stop();
       statusEl.textContent = '終了';
-      if(!muted){ try{ beep.currentTime=0; beep.play(); }catch(e){} }
+      
+      // アラーム音を再生
+      playAlarmSound();
+      
+      // 元のシンプルなフラッシュ効果
       overlay.animate([{background:'rgba(0,0,0,.48)'},{background:'rgba(255,255,255,.8)'},{background:'rgba(0,0,0,.48)'}],{duration:600});
+      
       return;
     }
     rafId = requestAnimationFrame(tick);
@@ -274,6 +429,11 @@
   secSel.addEventListener('input', updatePreview);
 
   confirmCreate.addEventListener('click', ()=>{
+    // オーディオ初期化（ユーザー操作による）
+    if (!isAudioReady) {
+      initAudio();
+    }
+    
     const m = Number(minSel.value||0);
     let s = Number(secSel.value||0);
     if(m === 60) s = 0; // enforce 60:00 only
@@ -284,9 +444,44 @@
     openOverlay();
   });
 
-  playPause.addEventListener('click', ()=>{ running ? stop() : start(); });
+  playPause.addEventListener('click', ()=>{ 
+    // オーディオ初期化（ユーザー操作による）
+    if (!isAudioReady) {
+      initAudio();
+    }
+    running ? stop() : start(); 
+  });
   resetBtn.addEventListener('click', ()=>{ stop(); reset(); });
-  muteBtn.addEventListener('click', ()=>{ muted = !muted; muteBtn.style.opacity = muted ? .5 : 1; });
+  
+  muteBtn.addEventListener('click', ()=>{ 
+    // オーディオ初期化（ユーザー操作による）
+    if (!isAudioReady) {
+      initAudio();
+    }
+    
+    muted = !muted; 
+    muteBtn.style.opacity = muted ? .4 : 1;
+    muteBtn.style.filter = muted ? 'grayscale(1)' : 'grayscale(0)';
+    muteBtn.setAttribute('aria-label', muted ? 'サウンドオフ（クリックでオン）' : 'サウンドオン（クリックでオフ）');
+    
+    // アイコンの切り替え
+    if (muted) {
+      soundOnIcon.style.display = 'none';
+      soundOffIcon.style.display = 'block';
+    } else {
+      soundOnIcon.style.display = 'block';
+      soundOffIcon.style.display = 'none';
+      // ミュート解除時に短いテスト音を再生
+      setTimeout(() => {
+        try {
+          beep.currentTime = 0;
+          beep.play();
+        } catch (e) {
+          console.warn('Unmute test sound failed:', e);
+        }
+      }, 100);
+    }
+  });
   deleteTimer.addEventListener('click', ()=>{ 
     closeOverlay();
     openModal();
@@ -308,6 +503,15 @@
   document.addEventListener('DOMContentLoaded', () => {
     openModal();
     setTimeout(()=> minSel && minSel.focus(), 0);
+    
+    // 音声の事前準備（即座に）
+    try {
+      beep.load();
+      beep.volume = 0.5;
+      console.log('Audio pre-loaded');
+    } catch (e) {
+      console.warn('Audio pre-load failed:', e);
+    }
   });
 
 
